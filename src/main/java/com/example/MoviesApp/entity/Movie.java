@@ -25,6 +25,16 @@ public class Movie {
 
     private String director;
 
+    private String poster;
+
+    public String getPoster() {
+        return poster;
+    }
+
+    public void setPoster(String poster) {
+        this.poster = poster;
+    }
+
     public String getDirector() {
         return director;
     }

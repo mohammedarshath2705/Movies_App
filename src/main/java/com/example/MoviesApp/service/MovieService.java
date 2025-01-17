@@ -103,6 +103,9 @@ public class MovieService {
                 if(omdbResponse.has("Language")){
                     movie.setLanguage(omdbResponse.getString("Language"));
                 }
+                if (omdbResponse.has("Poster") && !omdbResponse.getString("Poster").equals("N/A")) {
+                    movie.setPoster(omdbResponse.getString("Poster")); // Save poster URL
+                }
 
                 movieRepository.save(movie); // Update movie with new data
             } catch (Exception e) {
