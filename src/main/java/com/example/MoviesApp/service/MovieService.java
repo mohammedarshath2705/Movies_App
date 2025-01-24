@@ -11,15 +11,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 public class MovieService {
@@ -34,83 +30,201 @@ public class MovieService {
     @Value("${tmdb.base.url}")
     private String baseUrl;
 
-    @Value("${omdb.api.key}")
-    private String omdbApiKey;
-
-    @Value("${omdb.base.url}")
-    private String omdbBaseUrl;
-
     @Autowired
     public MovieService(MovieRepository movieRepository, RestTemplate restTemplate) {
         this.movieRepository = movieRepository;
         this.restTemplate = restTemplate;
     }
 
-    public List<Movie> fetchAndStoreMovies(int totalPages) {
-        List<Movie> movies = new ArrayList<>();
+    private static final Map<String, String> LANGUAGE_MAP = Map.ofEntries(
+            Map.entry("en", "English"),
+            Map.entry("ja", "Japanese"),
+            Map.entry("es", "Spanish"),
+            Map.entry("fr", "French"),
+            Map.entry("de", "German"),
+            Map.entry("zh", "Chinese"),
+            Map.entry("hi", "Hindi"),
+            Map.entry("ko", "Korean"),
+            Map.entry("it", "Italian"),
+            Map.entry("pt", "Portuguese"),
+            Map.entry("ru", "Russian"),
+            Map.entry("ar", "Arabic"),
+            Map.entry("tr", "Turkish"),
+            Map.entry("nl", "Dutch"),
+            Map.entry("sv", "Swedish"),
+            Map.entry("pl", "Polish"),
+            Map.entry("no", "Norwegian"),
+            Map.entry("fi", "Finnish"),
+            Map.entry("da", "Danish"),
+            Map.entry("th", "Thai"),
+            Map.entry("id", "Indonesian"),
+            Map.entry("vi", "Vietnamese"),
+            Map.entry("he", "Hebrew"),
+            Map.entry("uk", "Ukrainian"),
+            Map.entry("el", "Greek"),
+            Map.entry("cs", "Czech"),
+            Map.entry("ro", "Romanian"),
+            Map.entry("hu", "Hungarian"),
+            Map.entry("bg", "Bulgarian"),
+            Map.entry("sr", "Serbian"),
+            Map.entry("hr", "Croatian"),
+            Map.entry("ms", "Malay"),
+            Map.entry("ta", "Tamil"),
+            Map.entry("te", "Telugu"),
+            Map.entry("ml", "Malayalam"),
+            Map.entry("kn", "Kannada"),
+            Map.entry("mr", "Marathi"),
+            Map.entry("bn", "Bengali"),
+            Map.entry("pa", "Punjabi"),
+            Map.entry("gu", "Gujarati"),
+            Map.entry("am", "Amharic"),
+            Map.entry("sw", "Swahili"),
+            Map.entry("fa", "Persian"),
+            Map.entry("af", "Afrikaans"),
+            Map.entry("et", "Estonian"),
+            Map.entry("lt", "Lithuanian"),
+            Map.entry("lv", "Latvian"),
+            Map.entry("sl", "Slovenian"),
+            Map.entry("sk", "Slovak"),
+            Map.entry("is", "Icelandic")
+    );
 
-        for (int page = 1; page <= totalPages; page++) {
-            String url = baseUrl + "/movie/top_rated?api_key=" + apiKey + "&page=" + page;
+    private Map<Integer, String> genreMap = new HashMap<>();
+
+    private void fetchGenreMap() {
+        if (!genreMap.isEmpty()) {
+            return; // Genre map is already populated
+        }
+
+        String url = baseUrl + "/genre/movie/list?api_key=" + apiKey + "&language=en-US";
+        try {
             String response = restTemplate.getForObject(url, String.class);
+            JSONObject jsonResponse = new JSONObject(response);
+            JSONArray genres = jsonResponse.getJSONArray("genres");
 
+            for (int i = 0; i < genres.length(); i++) {
+                JSONObject genre = genres.getJSONObject(i);
+                int id = genre.getInt("id");
+                String name = genre.getString("name");
+                genreMap.put(id, name);
+            }
+        } catch (Exception e) {
+            logger.error("Error fetching genre map from TMDb API", e);
+        }
+    }
+
+    private String fetchGenres(JSONArray genreIds) {
+        fetchGenreMap(); // Ensure the genre map is populated
+
+        if (genreIds == null || genreIds.isEmpty()) {
+            return "Unknown";
+        }
+
+        List<String> genreNames = new ArrayList<>();
+        for (int i = 0; i < genreIds.length(); i++) {
+            int genreId = genreIds.getInt(i);
+            String genreName = genreMap.getOrDefault(genreId, "Unknown");
+            genreNames.add(genreName);
+        }
+        return String.join(", ", genreNames);
+    }
+
+    public List<Movie> fetchAndStoreMovies(int startPage, int totalPages) {
+        fetchGenreMap(); // Ensure genre map is populated before processing movies
+        List<Movie> movies = new ArrayList<>();
+        List<Movie> batchMovies = new ArrayList<>();
+
+        for (int page = startPage; page <= totalPages; page++) {
+            String url = baseUrl + "/movie/top_rated?api_key=" + apiKey + "&page=" + page;
             try {
+                String response = restTemplate.getForObject(url, String.class);
+
                 JSONObject jsonResponse = new JSONObject(response);
                 JSONArray results = jsonResponse.getJSONArray("results");
 
                 for (int i = 0; i < results.length(); i++) {
                     JSONObject movieJson = results.getJSONObject(i);
 
-                    Movie movie = new Movie();
-                    movie.setTitle(movieJson.getString("title"));
-                   // movie.setGenre(movieJson.has("genre_ids") ? movieJson.getJSONArray("genre_ids").toString() : "Unknown");
-                    //movie.setLanguage(movieJson.getString("original_language"));
-                    movie.setOverview(movieJson.getString("overview"));
-                    //movie.setRating(movieJson.getDouble("vote_average"));
-                    movie.setReleaseDate(movieJson.getString("release_date"));
+                    int movieId = movieJson.getInt("id");
+                    String title = movieJson.getString("title");
+                    Movie movie = movieRepository.findByTitle(title).orElse(new Movie());
 
-                    if (!movieRepository.existsByTitle(movie.getTitle())) {
-                        movieRepository.save(movie);
-                        movies.add(movie);
-                    }
+                    // Update or set all fields
+                    movie.setTitle(title);
+                    movie.setOverview(movieJson.optString("overview", "No overview available"));
+                    movie.setReleaseDate(movieJson.optString("release_date", "Unknown"));
+                    movie.setPoster(buildFullPosterPath(movieJson.optString("poster_path")));
+                    movie.setImdbRating(movieJson.optDouble("vote_average", 0.0));
+                    movie.setLanguage(getFullLanguageName(movieJson.optString("original_language", "Unknown")));
+                    movie.setGenre(fetchGenres(movieJson.optJSONArray("genre_ids")));
+                    movie.setDirector(fetchDirector(movieId));
+
+                    // Add to batch
+                    batchMovies.add(movie);
                 }
+
+                // Save batch when size reaches 50
+                if (batchMovies.size() >= 50) {
+                    movieRepository.saveAll(batchMovies);
+                    movies.addAll(batchMovies);
+                    batchMovies.clear(); // Clear the batch
+                }
+
+                logger.info("Processed page {}/{}", page, totalPages);
+
+                // Sleep between requests to avoid hitting rate limits
+                sleepBetweenRequests();
+
             } catch (Exception e) {
-                logger.error("Error while fetching movies from TMDb API", e);
+                logger.error("Error while fetching page " + page + " from TMDb API", e);
+                break; // Exit loop on error
             }
+        }
+
+        // Save remaining movies in the batch
+        if (!batchMovies.isEmpty()) {
+            movieRepository.saveAll(batchMovies);
+            movies.addAll(batchMovies);
         }
 
         return movies;
     }
 
-    public void updateMoviesWithOmdbData() {
-        List<Movie> movies = movieRepository.findAll();
+    private String buildFullPosterPath(String posterPath) {
+        if (posterPath == null || posterPath.isEmpty()) {
+            return null; // Handle cases where posterPath is null
+        }
+        return "https://image.tmdb.org/t/p/w500" + posterPath; // Change size as needed
+    }
 
-        for (Movie movie : movies) {
-            try {
-                String url = omdbBaseUrl + "/?apikey=" + omdbApiKey + "&t=" + movie.getTitle();
-                String response = restTemplate.getForObject(url, String.class);
+    public String fetchDirector(int movieId) {
+        String url = baseUrl + "/movie/" + movieId + "/credits?api_key=" + apiKey;
+        try {
+            String response = restTemplate.getForObject(url, String.class);
+            JSONObject jsonResponse = new JSONObject(response);
+            JSONArray crewArray = jsonResponse.getJSONArray("crew");
 
-                JSONObject omdbResponse = new JSONObject(response);
-
-                if (omdbResponse.has("imdbRating") && !omdbResponse.getString("imdbRating").equals("N/A")) {
-                    movie.setImdbRating(Double.parseDouble(omdbResponse.getString("imdbRating")));
+            for (int i = 0; i < crewArray.length(); i++) {
+                JSONObject crewMember = crewArray.getJSONObject(i);
+                if ("Director".equalsIgnoreCase(crewMember.optString("job"))) {
+                    return crewMember.optString("name", "Unknown");
                 }
-                if (omdbResponse.has("Genre")) {
-                    movie.setGenre(omdbResponse.getString("Genre"));
-                }
-                if (omdbResponse.has("Director")) {
-                    movie.setDirector(omdbResponse.getString("Director"));
-                }
-                if(omdbResponse.has("Language")){
-                    movie.setLanguage(omdbResponse.getString("Language"));
-                }
-                if (omdbResponse.has("Poster") && !omdbResponse.getString("Poster").equals("N/A")) {
-                    movie.setPoster(omdbResponse.getString("Poster")); // Save poster URL
-                }
-
-                movieRepository.save(movie); // Update movie with new data
-            } catch (Exception e) {
-                logger.error("Error while fetching IMDb data for movie: " + movie.getTitle(), e);
             }
+        } catch (Exception e) {
+            logger.error("Error fetching director information for movie ID: " + movieId, e);
+        }
+        return "Unknown";
+    }
+
+    private String getFullLanguageName(String languageCode) {
+        return LANGUAGE_MAP.getOrDefault(languageCode, "Unknown");
+    }
+
+    private void sleepBetweenRequests() {
+        try {
+            Thread.sleep(300); // 300 ms delay (adjust as needed)
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -124,8 +238,13 @@ public class MovieService {
         return movieRepository.findAll(pageRequest);
     }
 
-    public Movie getMovieById(UUID id){
+    public Movie getMovieById(UUID id) {
         Optional<Movie> movieOptional = this.movieRepository.findById(id);
         return movieOptional.orElse(null);
+    }
+
+    public Page<Movie> getAllMovies(int page, int size) {
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "title")); // Sorted by title
+        return movieRepository.findAll(pageRequest);
     }
 }

@@ -8,6 +8,7 @@ public class MoviesAppApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(MoviesAppApplication.class, args);
+		System.out.println("MoviesApp is running successfully!");
 	}
 
 }

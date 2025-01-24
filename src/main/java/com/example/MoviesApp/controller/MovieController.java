@@ -22,34 +22,65 @@ public class MovieController {
         this.movieService = movieService;
     }
 
-    @GetMapping("/fetch/{totalPages}")
-    public List<Movie> fetchMoviesFromTMDb(@PathVariable int totalPages) {
-        return movieService.fetchAndStoreMovies(totalPages);
+
+    @GetMapping("/fetch")
+    public ResponseEntity<List<Movie>> fetchMoviesFromTMDb(
+            @RequestParam(defaultValue = "1") int startPage,
+            @RequestParam int totalPages) {
+        try {
+            List<Movie> movies = movieService.fetchAndStoreMovies(startPage, totalPages);
+            return ResponseEntity.ok(movies);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
+        }
     }
 
-    @PutMapping("/updateWithOmdb")
-    public ResponseEntity<String> updateMoviesWithOmdbData() {
-        movieService.updateMoviesWithOmdbData();
-        return ResponseEntity.status(HttpStatus.OK).body("Movies updated !");
-    }
 
     @GetMapping("/byImdbRating")
-    public Page<Movie> getMoviesByRating(@RequestParam(defaultValue = "0") int page,
-                                         @RequestParam(defaultValue = "10") int size) {
-        return movieService.getMoviesSortedByImdbRating(page, size);
-    }
-
-    @GetMapping("/byReleaseDate")
-    public Page<Movie> getMoviesSortedByReleaseDate(
+    public ResponseEntity<Page<Movie>> getMoviesByRating(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return movieService.getMoviesSortedByReleaseDate(page, size);
+        try {
+            Page<Movie> movies = movieService.getMoviesSortedByImdbRating(page, size);
+            return ResponseEntity.ok(movies);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
     }
 
-    @GetMapping("/{id}")
-    public Movie getMoviesById(@PathVariable UUID id){
-        Movie movie = this.movieService.getMovieById(id);
-        return new ResponseEntity<>(movie,HttpStatus.CREATED).getBody();
+
+    @GetMapping("/byReleaseDate")
+    public ResponseEntity<Page<Movie>> getMoviesSortedByReleaseDate(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        try {
+            Page<Movie> movies = movieService.getMoviesSortedByReleaseDate(page, size);
+            return ResponseEntity.ok(movies);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
     }
+
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Movie> getMoviesById(@PathVariable UUID id) {
+        try {
+            Movie movie = movieService.getMovieById(id);
+            if (movie == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+            return ResponseEntity.ok(movie);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @GetMapping("/all")
+    public Page<Movie> getAllMovies(@RequestParam(defaultValue = "0") int page,
+                                    @RequestParam(defaultValue = "10") int size) {
+        return movieService.getAllMovies(page, size);
+    }
+
 
 }
