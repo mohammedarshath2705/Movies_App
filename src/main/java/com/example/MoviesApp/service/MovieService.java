@@ -9,12 +9,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.LocalDate;
 import java.util.*;
 
 @Service
@@ -147,13 +150,13 @@ public class MovieService {
 
                     int movieId = movieJson.getInt("id");
                     String title = movieJson.getString("title");
-                    Movie movie = movieRepository.findByTitle(title).orElse(new Movie());
+                    Movie movie = movieRepository.findByTitleIgnoreCase(title).orElse(new Movie());
 
                     // Update or set all fields
                     movie.setTitle(title);
                     movie.setOverview(movieJson.optString("overview", "No overview available"));
                     movie.setReleaseDate(movieJson.optString("release_date", "Unknown"));
-                    movie.setPoster(buildFullPosterPath(movieJson.optString("poster_path")));
+                    movie.setPoster(buildFullPosterPath(movieJson.optString("backdrop_path")));
                     movie.setImdbRating(movieJson.optDouble("vote_average", 0.0));
                     movie.setLanguage(getFullLanguageName(movieJson.optString("original_language", "Unknown")));
                     movie.setGenre(fetchGenres(movieJson.optJSONArray("genre_ids")));
@@ -190,12 +193,87 @@ public class MovieService {
         return movies;
     }
 
+    @Scheduled(cron = "0 23 19 * * ?")
+    public List<Movie> fetchAndStoreTodayReleases() {
+        logger.info("Fetching today's new releases...");
+        String today = LocalDate.now().toString();
+        String urlTemplate = baseUrl + "/discover/movie?api_key=" + apiKey
+                + "&primary_release_date.gte=" + today
+                + "&primary_release_date.lte=" + today
+                + "&page=%d"; // Pagination with page parameter
+
+        List<Movie> movies = new ArrayList<>();
+        int page = 1;
+        boolean hasNextPage = true;
+
+        while (hasNextPage) {
+            try {
+                // Build URL with current page number
+                String url = String.format(urlTemplate, page);
+
+                // Use RestTemplate to fetch data
+                RestTemplate restTemplate = new RestTemplate();
+                String response = restTemplate.getForObject(url, String.class);
+
+                JSONObject jsonResponse = new JSONObject(response);
+                JSONArray results = jsonResponse.getJSONArray("results");
+
+                if (results.length() == 0) {
+                    hasNextPage = false;  // No more results, stop pagination
+                    break;
+                }
+
+                for (int i = 0; i < results.length(); i++) {
+                    JSONObject movieJson = results.getJSONObject(i);
+                    String title = movieJson.getString("title");
+
+                    // Avoid duplicate entries
+                    if (movieRepository.findByTitleIgnoreCase(title).isPresent()) {
+                        continue;
+                    }
+
+                    Movie movie = new Movie();
+                    movie.setTitle(title);
+                    movie.setOverview(movieJson.optString("overview", "No overview available"));
+                    movie.setReleaseDate(movieJson.optString("release_date", today));
+                    movie.setPoster(buildFullPosterPath(movieJson.optString("backdrop_path")));
+                    movie.setImdbRating(movieJson.optDouble("vote_average", 0.0));
+                    movie.setLanguage(getFullLanguageName(movieJson.optString("original_language", "Unknown")));
+                    movie.setGenre(fetchGenres(movieJson.optJSONArray("genre_ids")));
+                    movie.setDirector(fetchDirector(movieJson.getInt("id")));
+
+                    movies.add(movie);
+                }
+
+                // Increment the page number for the next iteration
+                page++;
+
+            } catch (Exception e) {
+                logger.error("Error fetching today's releases", e);
+                break;
+            }
+        }
+
+        // Save movies to the database
+        if (!movies.isEmpty()) {
+            movieRepository.saveAll(movies);
+            logger.info("Today's releases saved successfully. Total: {}", movies.size());
+        } else {
+            logger.info("No new releases found today.");
+        }
+
+        // Return the list of movies
+        return movies;
+    }
+
+
     private String buildFullPosterPath(String posterPath) {
         if (posterPath == null || posterPath.isEmpty()) {
             return null; // Handle cases where posterPath is null
         }
-        return "https://image.tmdb.org/t/p/w500" + posterPath; // Change size as needed
+        return "https://image.tmdb.org/t/p/w780" + posterPath; // Use "original" for full-sized images
     }
+
 
     public String fetchDirector(int movieId) {
         String url = baseUrl + "/movie/" + movieId + "/credits?api_key=" + apiKey;
@@ -228,16 +306,19 @@ public class MovieService {
         }
     }
 
+    @Cacheable(value = "moviesSortedByImdb", key = "#page + '-' + #size")
     public Page<Movie> getMoviesSortedByImdbRating(int page, int size) {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "imdbRating"));
-        return movieRepository.findByImdbRatingIsNotNull(pageRequest);
+        return movieRepository.findAllMoviesSortedByImdbRating(pageRequest);
     }
 
+    @Cacheable(value = "moviesSortedByReleaseDate", key = "#page + '-' + #size")
     public Page<Movie> getMoviesSortedByReleaseDate(int page, int size) {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "releaseDate"));
-        return movieRepository.findAll(pageRequest);
+        return movieRepository.findAllMoviesSortedByReleaseDate(pageRequest);
     }
 
+    @Cacheable(value = "movies", key = "#id")
     public Movie getMovieById(UUID id) {
         Optional<Movie> movieOptional = this.movieRepository.findById(id);
         return movieOptional.orElse(null);
@@ -247,4 +328,10 @@ public class MovieService {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "title")); // Sorted by title
         return movieRepository.findAll(pageRequest);
     }
+
+    @Cacheable(value = "moviesByDate", key = "#date")
+    public List<Movie> getMoviesByDate(String date) {
+        return movieRepository.findAllMoviesByReleaseDate(date);
+    }
+
 }

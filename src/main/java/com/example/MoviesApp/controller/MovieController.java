@@ -4,10 +4,13 @@ import com.example.MoviesApp.entity.Movie;
 import com.example.MoviesApp.service.MovieService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.UUID;
 
@@ -82,5 +85,30 @@ public class MovieController {
         return movieService.getAllMovies(page, size);
     }
 
+    @GetMapping("/moviesByDate")
+    public ResponseEntity<?> getMoviesByDate(@RequestParam String date) {
+        try {
+            // Validate date format (Optional)
+            LocalDate.parse(date); // This throws DateTimeParseException for invalid dates
+
+            List<Movie> movies = movieService.getMoviesByDate(date);
+
+            if (movies.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NO_CONTENT).body("No movies found for the selected date.");
+            }
+
+            return ResponseEntity.ok(movies);
+        } catch (DateTimeParseException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid date format. Use 'YYYY-MM-DD'.");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("An error occurred while retrieving movies for the selected date.");
+        }
+    }
 
 }
+
+
+
+
