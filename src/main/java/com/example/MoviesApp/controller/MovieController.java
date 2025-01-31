@@ -14,6 +14,7 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.UUID;
 
+
 @RestController
 @RequestMapping("/movies")
 public class MovieController {
@@ -83,6 +84,12 @@ public class MovieController {
     public Page<Movie> getAllMovies(@RequestParam(defaultValue = "0") int page,
                                     @RequestParam(defaultValue = "10") int size) {
         return movieService.getAllMovies(page, size);
+    }
+
+    @GetMapping("/fetch-today-releases")
+    public ResponseEntity<List<Movie>> fetchTodayReleases() {
+        List<Movie> movies = movieService.fetchAndStoreTodayReleases();
+        return ResponseEntity.ok(movies);
     }
 
     @GetMapping("/moviesByDate")
