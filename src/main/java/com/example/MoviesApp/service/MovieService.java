@@ -193,7 +193,7 @@ public class MovieService {
         return movies;
     }
 
-    @Scheduled(cron = "0 0 16 * * ?")
+    @Scheduled(cron = "0 0 13 * * ?")
     public List<Movie> fetchAndStoreTodayReleases() {
         logger.info("Fetching today's new releases...");
         String today = LocalDate.now().toString();
@@ -237,7 +237,7 @@ public class MovieService {
                     movie.setOverview(movieJson.optString("overview", "No overview available"));
                     movie.setReleaseDate(movieJson.optString("release_date", today));
                     movie.setPoster(buildFullPosterPath(movieJson.optString("backdrop_path")));
-                    movie.setImdbRating(0.0);
+                    movie.setImdbRating(movieJson.optDouble("vote_average", 0.0));
                     movie.setLanguage(getFullLanguageName(movieJson.optString("original_language", "Unknown")));
                     movie.setGenre(fetchGenres(movieJson.optJSONArray("genre_ids")));
                     movie.setDirector(fetchDirector(movieJson.getInt("id")));
