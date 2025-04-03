@@ -28,7 +28,7 @@ public class RedisConfig {
     public CacheManager cacheManager(RedisConnectionFactory redisConnectionFactory) {
         RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofMinutes(10))
-               // .entryTtl(Duration.ofHours(24))
+                // .entryTtl(Duration.ofHours(24))
                 .disableCachingNullValues();
 
         return RedisCacheManager.builder(redisConnectionFactory)
