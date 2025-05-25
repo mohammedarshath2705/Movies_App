@@ -21,7 +21,7 @@ public class RedisConfig {
     @Bean
     public RedisConnectionFactory redisConnectionFactory() {
         // You can configure SSL, connection pooling, etc. here
-        return new LettuceConnectionFactory("red-cudm0olumphs73cpn9lg", 6379); // Use your actual Redis host and port
+        return new LettuceConnectionFactory("red-cudm0olumphs73cpn9lg", 6379);
     }
 
     @Bean

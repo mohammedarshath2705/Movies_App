@@ -133,7 +133,7 @@ public class MovieService {
     }
 
     public List<Movie> fetchAndStoreMovies(int startPage, int totalPages) {
-        fetchGenreMap(); // Ensure genre map is populated before processing movies
+        fetchGenreMap();
         List<Movie> movies = new ArrayList<>();
         List<Movie> batchMovies = new ArrayList<>();
 
@@ -147,6 +147,8 @@ public class MovieService {
 
                 for (int i = 0; i < results.length(); i++) {
                     JSONObject movieJson = results.getJSONObject(i);
+
+                    
 
                     int movieId = movieJson.getInt("id");
                     String title = movieJson.getString("title");
@@ -180,7 +182,7 @@ public class MovieService {
 
             } catch (Exception e) {
                 logger.error("Error while fetching page " + page + " from TMDb API", e);
-                break; // Exit loop on error
+                break;
             }
         }
 
