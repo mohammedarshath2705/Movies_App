@@ -20,6 +20,9 @@ public interface MovieRepository extends JpaRepository<Movie, UUID> {
     @Query("SELECT m FROM Movie m WHERE LOWER(m.title) = LOWER(:title)")
     Optional<Movie> findByTitleIgnoreCase(@Param("title") String title);
 
+    @Query("SELECT m FROM Movie m WHERE LOWER(m.title) LIKE LOWER(CONCAT('%', :title, '%'))")
+    List<Movie> findByTitleContainingIgnoreCase(@Param("title") String title);
+
     // Sort by IMDb rating with pagination
     @Query("SELECT m FROM Movie m ORDER BY m.imdbRating DESC")
     Page<Movie> findAllMoviesSortedByImdbRating(Pageable pageable);

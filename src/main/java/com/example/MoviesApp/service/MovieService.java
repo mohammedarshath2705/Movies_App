@@ -148,7 +148,11 @@ public class MovieService {
                 for (int i = 0; i < results.length(); i++) {
                     JSONObject movieJson = results.getJSONObject(i);
 
-                    
+                    double imdbRating = movieJson.optDouble("vote_average", 0.0);
+
+                    if (imdbRating > 8.5) {
+                        continue;
+                    }
 
                     int movieId = movieJson.getInt("id");
                     String title = movieJson.getString("title");
@@ -159,7 +163,7 @@ public class MovieService {
                     movie.setOverview(movieJson.optString("overview", "No overview available"));
                     movie.setReleaseDate(movieJson.optString("release_date", "Unknown"));
                     movie.setPoster(buildFullPosterPath(movieJson.optString("backdrop_path")));
-                    movie.setImdbRating(movieJson.optDouble("vote_average", 0.0));
+                    movie.setImdbRating(imdbRating);
                     movie.setLanguage(getFullLanguageName(movieJson.optString("original_language", "Unknown")));
                     movie.setGenre(fetchGenres(movieJson.optJSONArray("genre_ids")));
                     movie.setDirector(fetchDirector(movieId));
@@ -335,5 +339,22 @@ public class MovieService {
     public List<Movie> getMoviesByDate(String date) {
         return movieRepository.findAllMoviesByReleaseDate(date);
     }
+
+    @Cacheable(value = "moviesByTitle", key = "#title.toLowerCase()")
+    public Optional<Movie> getMovieByTitle(String title) {
+        System.out.println("Searching for movie with title: " + title);
+        Optional<Movie> movie = movieRepository.findByTitleIgnoreCase(title);
+        System.out.println("Movie found? " + movie.isPresent());
+        return movie;
+    }
+
+    @Cacheable(value = "moviesAllByTitle", key = "#title.toLowerCase()")
+    public List<Movie> getMoviesAllByTitle(String title) {
+        return movieRepository.findByTitleContainingIgnoreCase(title);
+    }
+
+
+
+
 
 }

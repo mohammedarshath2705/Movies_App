@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 
@@ -113,6 +114,43 @@ public class MovieController {
                     .body("An error occurred while retrieving movies for the selected date.");
         }
     }
+
+    @GetMapping("/search")
+    public ResponseEntity<Movie> getMoviesByTitle(@RequestParam String title) {
+        try {
+            Optional<Movie> movieOpt = movieService.getMovieByTitle(title);
+
+            if (movieOpt.isEmpty()) {
+                System.out.println("Movie not found for title: " + title);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+
+            return ResponseEntity.ok(movieOpt.get());
+
+        } catch (Exception e) {
+            e.printStackTrace();  // This will now print the actual cause in logs
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @GetMapping("/search/all")
+    public ResponseEntity<List<Movie>> getMoviesByAllTitle(@RequestParam String title) {
+        try {
+            List<Movie> movies = movieService.getMoviesAllByTitle(title);
+
+            if (movies.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+
+            return ResponseEntity.ok(movies);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+
 
 }
 
