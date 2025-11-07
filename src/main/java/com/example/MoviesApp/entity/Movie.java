@@ -1,12 +1,19 @@
 package com.example.MoviesApp.entity;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 
+@Getter
 @Entity
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
 public class Movie implements Serializable {
 
     @Id
@@ -28,71 +35,12 @@ public class Movie implements Serializable {
 
     private String poster;
 
-    public String getPoster() {
-        return poster;
-    }
+    @JsonIgnore
+    @ManyToMany(mappedBy = "favorites")
+    private List<User> usersWhoFavorited = new ArrayList<>();
 
-    public void setPoster(String poster) {
-        this.poster = poster;
-    }
 
-    public String getDirector() {
-        return director;
-    }
-
-    public void setDirector(String director) {
-        this.director = director;
-    }
-
-    public Double getImdbRating() {
-        return imdbRating;
-    }
-
-    public void setImdbRating(Double imdbRating) {
-        this.imdbRating = imdbRating;
-    }
-
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
-    }
-
-    public String getGenre() {
-        return genre;
-    }
-
-    public void setGenre(String genre) {
-        this.genre = genre;
-    }
-
-    public String getLanguage() {
-        return language;
-    }
-
-    public void setLanguage(String language) {
-        this.language = language;
-    }
-
-    public String getOverview() {
-        return overview;
-    }
-
-    public void setOverview(String overview) {
-        this.overview = overview;
-    }
-
-//    public Double getRating() {
+    //    public Double getRating() {
 //        return rating;
 //    }
 //
@@ -100,11 +48,4 @@ public class Movie implements Serializable {
 //        this.rating = rating;
 //    }
 
-    public String getReleaseDate() {
-        return releaseDate;
-    }
-
-    public void setReleaseDate(String releaseDate) {
-        this.releaseDate = releaseDate;
-    }
 }

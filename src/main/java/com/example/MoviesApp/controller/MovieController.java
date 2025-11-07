@@ -96,8 +96,7 @@ public class MovieController {
     @GetMapping("/moviesByDate")
     public ResponseEntity<?> getMoviesByDate(@RequestParam String date) {
         try {
-            // Validate date format (Optional)
-            LocalDate.parse(date); // This throws DateTimeParseException for invalid dates
+            LocalDate.parse(date);
 
             List<Movie> movies = movieService.getMoviesByDate(date);
 

@@ -330,10 +330,15 @@ public class MovieService {
         return movieOptional.orElse(null);
     }
 
+    @Cacheable(
+            value = "allMovies",
+            key = "#page + '-' + #size"
+    )
     public Page<Movie> getAllMovies(int page, int size) {
-        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "title")); // Sorted by title
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "title"));
         return movieRepository.findAll(pageRequest);
     }
+
 
     @Cacheable(value = "moviesByDate", key = "#date")
     public List<Movie> getMoviesByDate(String date) {
