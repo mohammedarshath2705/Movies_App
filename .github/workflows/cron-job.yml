@@ -1,0 +1,16 @@
+name: Daily Cron Job
+
+on:
+  schedule:
+    - cron: "30 21 * * *"   # 3:00 AM IST
+  workflow_dispatch:
+
+jobs:
+  run_cron:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Call backend cron endpoint
+        run: |
+          curl -X GET "https://movies-app-backend-0r3l.onrender.com/fetch-today-releases" \
+               -H "X-CRON-KEY: ${{ secrets.CRON_API_TOKEN }}"
