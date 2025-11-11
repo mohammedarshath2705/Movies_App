@@ -3,7 +3,6 @@ package com.example.MoviesApp.controller;
 import com.example.MoviesApp.entity.Movie;
 import com.example.MoviesApp.service.MovieService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -88,21 +87,19 @@ public class MovieController {
         return movieService.getAllMovies(page, size);
     }
 
-    @Value("${app.cron.key}")
-    private String cronKeyProperty;
-
     @GetMapping("/fetch-today-releases")
     public ResponseEntity<?> fetchTodayReleases(
             @RequestHeader(value = "X-CRON-KEY", required = false) String cronKey
     ) {
-        if (cronKey == null || !cronKey.equals(cronKeyProperty)) {
+        String expectedKey = System.getenv("CRON_SECRET_KEY");
+
+        if (cronKey == null || !cronKey.equals(expectedKey)) {
             return ResponseEntity.status(401).body("Unauthorized: Invalid cron key");
         }
 
         List<Movie> movies = movieService.fetchAndStoreTodayReleases();
         return ResponseEntity.ok(movies);
     }
-
 
 
     @GetMapping("/moviesByDate")

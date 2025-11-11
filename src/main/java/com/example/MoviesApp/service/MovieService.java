@@ -199,6 +199,7 @@ public class MovieService {
         return movies;
     }
 
+    @Scheduled(cron = "0 30 16 * * ?")
     public List<Movie> fetchAndStoreTodayReleases() {
         logger.info("Fetching today's new releases...");
         String today = LocalDate.now().toString();
