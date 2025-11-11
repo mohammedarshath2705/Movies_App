@@ -88,19 +88,10 @@ public class MovieController {
     }
 
     @GetMapping("/fetch-today-releases")
-    public ResponseEntity<?> fetchTodayReleases(
-            @RequestHeader(value = "X-CRON-KEY", required = false) String cronKey
-    ) {
-        String expectedKey = System.getenv("CRON_SECRET_KEY");
-
-        if (cronKey == null || !cronKey.equals(expectedKey)) {
-            return ResponseEntity.status(401).body("Unauthorized: Invalid cron key");
-        }
-
+    public ResponseEntity<List<Movie>> fetchTodayReleases() {
         List<Movie> movies = movieService.fetchAndStoreTodayReleases();
         return ResponseEntity.ok(movies);
     }
-
 
     @GetMapping("/moviesByDate")
     public ResponseEntity<?> getMoviesByDate(@RequestParam String date) {
