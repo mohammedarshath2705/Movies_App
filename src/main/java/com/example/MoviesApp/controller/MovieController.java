@@ -88,10 +88,25 @@ public class MovieController {
     }
 
     @GetMapping("/fetch-today-releases")
-    public ResponseEntity<List<Movie>> fetchTodayReleases() {
-        List<Movie> movies = movieService.fetchAndStoreTodayReleases();
-        return ResponseEntity.ok(movies);
+    public ResponseEntity<?> fetchTodayReleases() {
+        try {
+            List<Movie> movies = movieService.fetchAndStoreTodayReleases();
+
+            if (movies.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NO_CONTENT)
+                        .body("No movies released today");
+            }
+
+            return ResponseEntity.ok(movies);
+
+        } catch (Exception e) {
+            e.printStackTrace(); // for debugging/logging
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("An error occurred while fetching today's releases");
+        }
     }
+
 
     @GetMapping("/moviesByDate")
     public ResponseEntity<?> getMoviesByDate(@RequestParam String date) {

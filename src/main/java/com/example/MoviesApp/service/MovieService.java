@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -200,6 +201,15 @@ public class MovieService {
     }
 
     @Scheduled(cron = "0 30 16 * * ?")
+    @CacheEvict(
+            value = {
+                    "allMovies",
+                    "moviesSortedByImdb",
+                    "moviesSortedByReleaseDate",
+                    "moviesByDate"
+            },
+            allEntries = true
+    )
     public List<Movie> fetchAndStoreTodayReleases() {
         logger.info("Fetching today's new releases...");
         String today = LocalDate.now().toString();
@@ -232,6 +242,13 @@ public class MovieService {
                 for (int i = 0; i < results.length(); i++) {
                     JSONObject movieJson = results.getJSONObject(i);
                     String title = movieJson.getString("title");
+
+                    // Skip if IMDb rating is >= 8.8
+                    double imdbRating = movieJson.optDouble("vote_average", 0.0);
+                    if (imdbRating >= 8.8) {
+                        logger.info("Skipping high-rated movie ({}): IMDb {}", title, imdbRating);
+                        continue;
+                    }
 
                     // Avoid duplicate entries
                     if (movieRepository.findByTitleIgnoreCase(title).isPresent()) {
